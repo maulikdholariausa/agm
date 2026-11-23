@@ -1,50 +1,45 @@
-# Mock Interview: GitHub Issue Agent Harness
+# Weedmaps AI Platform — Mock Coding Interview 2
 
-**Scenario:** This is a tiny TypeScript/Node.js application that receives GitHub issue events, reads Markdown instructions, uses a *mocked* Claude Agent SDK adapter, and posts a triage comment.
+## Agent tool permissions (TypeScript, Node.js)
 
-**Your role:** Senior Software Engineer joining the AI Platform team. The interviewer asks you to investigate and fix duplicate comments on repeated GitHub webhook deliveries.
+This is an **intentionally incomplete** exercise. The tests are designed to expose a security bug. No live Claude or GitHub credentials are required.
 
-**Environment:** Node.js 22.6+; no packages, API keys, network, or GitHub account needed. TypeScript files run with Node's built-in type stripping. `npm test` runs tests. `npm run typecheck` is optional if TypeScript and Node type declarations are already installed.
+### Run in GitHub Codespaces
 
-## Your assignment (do not read past this before your first exploration)
-
-We sometimes publish duplicate triage comments when the same issue event is delivered more than once. An issue may get a different `deliveryId` without any actual content revision. The harness should only publish one comment per **repository + issue + revision**, even under concurrent handlers. After a *genuine new revision*, the issue should be eligible for a fresh triage.
-
-1. Explore the repo and explain its execution flow.
-2. Run the tests and identify the defect.
-3. Implement a minimal fix that passes the tests, plus tests for a new revision and failure recovery.
-4. Explain the limitations of your solution, particularly across multiple Node processes and partial GitHub failures.
-
-**Constraints:** Preserve Markdown instruction loading and agent streaming; do not use real GitHub or model credentials. Don't rewrite the project wholesale. Explain any assumptions you make.
-
-**Interview note:** A process-local `Set` may pass simple tests, but a production answer also needs to discuss atomic state, idempotency across processes, and what happens when GitHub succeeds but local state recording fails. You're not expected to implement a database in this mock unless you choose to.
-
-## Start here
+From your `agm` repository's Codespace terminal:
 
 ```bash
+cd exercises/tool-permissions
 npm test
-cat package.json
-find src tests instructions -type f
 ```
 
-Do not assume this project is Weedmaps' actual interview repository; it is an independent practice exercise.
+Requires Node.js >= 22.6 (the existing Codespaces Node 22 image works). If your Codespace is still on an older Node version, update Node first.
 
-## Open in GitHub Codespaces
+### Scenario
 
-1. Create a new GitHub repository (e.g. `weedmaps-agent-mock`).
-2. Upload all project files **including** `.devcontainer/devcontainer.json`, keeping their folder structure; or clone the new empty repository and copy the project files into it before committing and pushing.
-3. In the GitHub repository, select **Code > Codespaces > Create codespace on main**.
-4. The devcontainer provisions Node 22 and runs `npm test` during setup. The three intentionally failing tests are part of this coding exercise.
+The harness offers six tools to AI agents:
 
-If pushing with git locally, run from the project directory (replace placeholders):
+- Read: `get_issue`, `get_pull_request`, `list_files`
+- Write: `post_comment`
+- Admin: `merge_pull_request`, `delete_branch`
 
-```bash
-git init
-git add .
-git commit -m "Add agent harness practice exercise"
-git branch -M main
-git remote add origin https://github.com/YOUR_USERNAME/weedmaps-agent-mock.git
-git push -u origin main
-```
+Roles:
 
-No Claude or GitHub API credentials are needed; the adapter is mocked.
+| Role | Allowed |
+| --- | --- |
+| viewer | read |
+| developer | read + write |
+| admin | read + write + admin |
+
+### Tasks
+
+1. Inspect `src/permissions.ts`, `src/execute.ts`, and the tests.
+2. Implement `getAllowedTools(role, tools)` so only permitted tools are exposed to the model.
+3. Implement the execution-boundary permission check in `executeTool` so the model cannot bypass filtering by requesting a forbidden tool directly.
+4. Run `npm test` and explain how you would adapt this for real GitHub repository permissions and per-resource access.
+
+**Do not confuse hiding a tool from the model with enforcing authorization at execution time.**
+
+### Evaluation criteria
+
+Correctness, deny-by-default behavior, maintainability, failure behavior, and test quality. Bonus: What if a user is an admin in one repository but only a viewer in another?
