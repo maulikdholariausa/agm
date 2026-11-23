@@ -69,3 +69,28 @@ test("concurrent delivery of the same issue revision posts once", async () => {
   ]);
   assert.equal(f.comments.length, 1, "claim must be atomic across concurrent handlers");
 });
+
+test("new issue revision gets a fresh triage comment", async () => {
+  const f = fixture();
+  await handleIssueEvent(baseEvent, f.deps);
+  await handleIssueEvent({ ...baseEvent, deliveryId: "delivery-3", updatedAt: "2026-11-22T11:00:00Z" }, f.deps);
+  assert.equal(f.comments.length, 2);
+});
+
+test("failure releases the claim so the issue can be retried", async () => {
+  const f = fixture();
+  f.deps.agent = {
+    async *query() {
+      yield { type: "result", subtype: "error", message: "temporary failure" } as const;
+    },
+  };
+
+  await assert.rejects(() => handleIssueEvent(baseEvent, f.deps), /temporary failure/);
+  f.deps.agent = {
+    async *query(req) {
+      yield { type: "result", subtype: "success", result: "Retry succeeded." } as const;
+    },
+  };
+  await handleIssueEvent(baseEvent, f.deps);
+  assert.equal(f.comments.length, 1);
+});
